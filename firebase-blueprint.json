@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Store operational settings, 4 Google Drive category folders, and 4 Survey/Report links",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "enum": ["store-main"] },
+        "storeName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "driveScriptUrl": { "type": "string", "maxLength": 500 },
+        "driveFolders": { "type": "object" },
+        "surveyLinks": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "storeName", "driveScriptUrl", "driveFolders", "surveyLinks", "updatedAt"]
+    },
+    "WeeklySchedule": {
+      "title": "WeeklySchedule",
+      "description": "Metadata for an uploaded weekly Senin-Minggu Excel shift schedule",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "enum": ["store-main"] },
+        "weekKey": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^\\d{4}-W\\d{2}$" },
+        "weekLabel": { "type": "string", "minLength": 3, "maxLength": 80 },
+        "startDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "endDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "totalStaff": { "type": "integer" },
+        "totalActiveShifts": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "storeId", "weekKey", "weekLabel", "startDate", "endDate",
+        "fileName", "totalStaff", "totalActiveShifts", "createdAt", "updatedAt"
+      ]
+    },
+    "WeeklyStaffShift": {
+      "title": "WeeklyStaffShift",
+      "description": "Single staff member Senin-Minggu shift schedule for a specific week",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "enum": ["store-main"] },
+        "weekKey": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^\\d{4}-W\\d{2}$" },
+        "staffId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "shifts": { "type": "object" },
+        "totalActiveDays": { "type": "integer" },
+        "counts": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "storeId", "weekKey", "staffId", "name", "role",
+        "shifts", "totalActiveDays", "counts", "updatedAt"
+      ]
+    },
+    "WeeklyTargetConfig": {
+      "title": "WeeklyTargetConfig",
+      "description": "Auto or manual weekly KPI target configuration",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "enum": ["store-main"] },
+        "weekKey": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^\\d{4}-W\\d{2}$" },
+        "mode": { "type": "string", "enum": ["auto", "manual"] },
+        "dailyQuotas": { "type": "object" },
+        "manualTotals": { "type": "object" },
+        "staffOverrides": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "weekKey", "mode", "dailyQuotas", "manualTotals", "staffOverrides", "updatedAt"]
+    },
+    "StaffActivity": {
+      "title": "StaffActivity",
+      "description": "Logged Open Studio or Product Try-on activity with Google Drive photo URL",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "enum": ["store-main"] },
+        "date": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "weekKey": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^\\d{4}-W\\d{2}$" },
+        "monthKey": { "type": "string", "minLength": 7, "maxLength": 7, "pattern": "^\\d{4}-\\d{2}$" },
+        "staffId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "staffName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "staffRole": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "shiftCode": { "type": "string", "enum": ["P", "M", "S"] },
+        "activityType": { "type": "string", "enum": ["open_studio", "try_on"] },
+        "topic": { "type": "string", "maxLength": 200 },
+        "participantsCount": { "type": "integer" },
+        "productCategory": { "type": "string", "enum": ["", "AirPods", "iPad", "Apple Watch"] },
+        "customerNotes": { "type": "string", "maxLength": 500 },
+        "photoUrl": { "type": "string", "maxLength": 1000 },
+        "photoSource": { "type": "string", "enum": ["gdrive_apps_script", "manual_link", "drive_folder_fallback", "none"] },
+        "verificationStatus": { "type": "string", "enum": ["pending", "verified", "revision"] },
+        "adminNotes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "storeId", "date", "weekKey", "monthKey", "staffId", "staffName", "staffRole",
+        "shiftCode", "activityType", "topic", "participantsCount", "productCategory",
+        "customerNotes", "photoUrl", "photoSource", "verificationStatus",
+        "adminNotes", "createdAt", "updatedAt"
+      ]
+    },
+    "CashierReport": {
+      "title": "CashierReport",
+      "description": "End-of-shift cashier operational summary of Open Studio (OPS) and Try-on counts",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string", "enum": ["store-main"] },
+        "date": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "weekKey": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^\\d{4}-W\\d{2}$" },
+        "monthKey": { "type": "string", "minLength": 7, "maxLength": 7, "pattern": "^\\d{4}-\\d{2}$" },
+        "shift": { "type": "string", "enum": ["Pagi", "Middle", "Siang", "Full Day"] },
+        "cashierName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "openStudioCount": { "type": "integer" },
+        "openStudioParticipants": { "type": "integer" },
+        "tryOnCounts": { "type": "object" },
+        "totalTryOnCount": { "type": "integer" },
+        "handoverNotes": { "type": "string", "maxLength": 800 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "storeId", "date", "weekKey", "monthKey", "shift", "cashierName",
+        "openStudioCount", "openStudioParticipants", "tryOnCounts", "totalTryOnCount",
+        "handoverNotes", "createdAt", "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/storeSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Store settings, 4 Google Drive folders, and 4 Survey/Report links"
+    },
+    "/weeklySchedules/{weekKey}": {
+      "schema": { "$ref": "#/entities/WeeklySchedule" },
+      "description": "Weekly Senin-Minggu schedule metadata keyed by YYYY-Www"
+    },
+    "/weeklySchedules/{weekKey}/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/WeeklyStaffShift" },
+      "description": "Per-staff Senin-Minggu shift schedule (P/M/S/X)"
+    },
+    "/weeklyTargets/{weekKey}": {
+      "schema": { "$ref": "#/entities/WeeklyTargetConfig" },
+      "description": "Weekly target quotas keyed by YYYY-Www"
+    },
+    "/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/StaffActivity" },
+      "description": "Real-time staff Open Studio and Try-on activity logs"
+    },
+    "/cashierReports/{reportId}": {
+      "schema": { "$ref": "#/entities/CashierReport" },
+      "description": "Daily cashier operational summary of Open Studio (OPS) and Try-on counts"
+    }
+  }
+}

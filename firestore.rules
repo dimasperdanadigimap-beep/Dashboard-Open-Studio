@@ -1,0 +1,329 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default-Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Reusable Hardened Validation Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidWeekKey(key) {
+      return key is string && key.size() == 8 && key.matches('^\\d{4}-W\\d{2}$');
+    }
+
+    function isValidMonthKey(key) {
+      return key is string && key.size() == 7 && key.matches('^\\d{4}-\\d{2}$');
+    }
+
+    function isValidDateStr(d) {
+      return d is string && d.size() == 10 && d.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidStoreSettings(data) {
+      return data.keys().hasAll(['storeId', 'storeName', 'driveScriptUrl', 'driveFolders', 'surveyLinks', 'updatedAt'])
+        && data.keys().hasOnly(['storeId', 'storeName', 'driveScriptUrl', 'driveFolders', 'surveyLinks', 'updatedAt'])
+        && data.storeId == 'store-main'
+        && data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 120
+        && data.driveScriptUrl is string && data.driveScriptUrl.size() <= 500
+        && data.driveFolders is map
+        && data.driveFolders.keys().hasAll(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.driveFolders.keys().hasOnly(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.driveFolders.openStudio is string && data.driveFolders.openStudio.size() <= 500
+        && data.driveFolders.airpods is string && data.driveFolders.airpods.size() <= 500
+        && data.driveFolders.ipad is string && data.driveFolders.ipad.size() <= 500
+        && data.driveFolders.watch is string && data.driveFolders.watch.size() <= 500
+        && data.surveyLinks is map
+        && data.surveyLinks.keys().hasAll(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.surveyLinks.keys().hasOnly(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.surveyLinks.openStudio is string && data.surveyLinks.openStudio.size() <= 500
+        && data.surveyLinks.airpods is string && data.surveyLinks.airpods.size() <= 500
+        && data.surveyLinks.ipad is string && data.surveyLinks.ipad.size() <= 500
+        && data.surveyLinks.watch is string && data.surveyLinks.watch.size() <= 500
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWeeklySchedule(data, weekKey) {
+      return data.keys().hasAll([
+          'storeId', 'weekKey', 'weekLabel', 'startDate', 'endDate',
+          'fileName', 'totalStaff', 'totalActiveShifts', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'storeId', 'weekKey', 'weekLabel', 'startDate', 'endDate',
+          'fileName', 'totalStaff', 'totalActiveShifts', 'createdAt', 'updatedAt'
+        ])
+        && data.storeId == 'store-main'
+        && data.weekKey == weekKey
+        && isValidWeekKey(data.weekKey)
+        && data.weekLabel is string && data.weekLabel.size() >= 3 && data.weekLabel.size() <= 80
+        && isValidDateStr(data.startDate)
+        && isValidDateStr(data.endDate)
+        && data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 160
+        && data.totalStaff is int && data.totalStaff >= 0 && data.totalStaff <= 500
+        && data.totalActiveShifts is int && data.totalActiveShifts >= 0 && data.totalActiveShifts <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWeeklyStaffShift(data, weekKey, staffId) {
+      return data.keys().hasAll([
+          'storeId', 'weekKey', 'staffId', 'name', 'role',
+          'shifts', 'totalActiveDays', 'counts', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'storeId', 'weekKey', 'staffId', 'name', 'role',
+          'shifts', 'totalActiveDays', 'counts', 'updatedAt'
+        ])
+        && data.storeId == 'store-main'
+        && data.weekKey == weekKey
+        && data.staffId == staffId
+        && isValidId(data.staffId)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.role is string && data.role.size() >= 1 && data.role.size() <= 80
+        && data.shifts is map
+        && data.shifts.keys().hasAll(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+        && data.shifts.keys().hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+        && data.shifts.mon in ['P', 'M', 'S', 'X']
+        && data.shifts.tue in ['P', 'M', 'S', 'X']
+        && data.shifts.wed in ['P', 'M', 'S', 'X']
+        && data.shifts.thu in ['P', 'M', 'S', 'X']
+        && data.shifts.fri in ['P', 'M', 'S', 'X']
+        && data.shifts.sat in ['P', 'M', 'S', 'X']
+        && data.shifts.sun in ['P', 'M', 'S', 'X']
+        && data.totalActiveDays is int && data.totalActiveDays >= 0 && data.totalActiveDays <= 7
+        && data.counts is map
+        && data.counts.keys().hasAll(['P', 'M', 'S', 'X'])
+        && data.counts.keys().hasOnly(['P', 'M', 'S', 'X'])
+        && data.counts.P is int && data.counts.M is int && data.counts.S is int && data.counts.X is int
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWeeklyTargetConfig(data, weekKey) {
+      return data.keys().hasAll([
+          'storeId', 'weekKey', 'mode', 'dailyQuotas',
+          'manualTotals', 'staffOverrides', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'storeId', 'weekKey', 'mode', 'dailyQuotas',
+          'manualTotals', 'staffOverrides', 'updatedAt'
+        ])
+        && data.storeId == 'store-main'
+        && data.weekKey == weekKey
+        && isValidWeekKey(data.weekKey)
+        && data.mode in ['auto', 'manual']
+        && data.dailyQuotas is map
+        && data.dailyQuotas.keys().hasAll(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.dailyQuotas.keys().hasOnly(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.dailyQuotas.openStudio is number && data.dailyQuotas.openStudio >= 0 && data.dailyQuotas.openStudio <= 100
+        && data.dailyQuotas.airpods is number && data.dailyQuotas.airpods >= 0 && data.dailyQuotas.airpods <= 100
+        && data.dailyQuotas.ipad is number && data.dailyQuotas.ipad >= 0 && data.dailyQuotas.ipad <= 100
+        && data.dailyQuotas.watch is number && data.dailyQuotas.watch >= 0 && data.dailyQuotas.watch <= 100
+        && data.manualTotals is map
+        && data.manualTotals.keys().hasAll(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.manualTotals.keys().hasOnly(['openStudio', 'airpods', 'ipad', 'watch'])
+        && data.manualTotals.openStudio is int && data.manualTotals.openStudio >= 0 && data.manualTotals.openStudio <= 100000
+        && data.manualTotals.airpods is int && data.manualTotals.airpods >= 0 && data.manualTotals.airpods <= 100000
+        && data.manualTotals.ipad is int && data.manualTotals.ipad >= 0 && data.manualTotals.ipad <= 100000
+        && data.manualTotals.watch is int && data.manualTotals.watch >= 0 && data.manualTotals.watch <= 100000
+        && data.staffOverrides is map && data.staffOverrides.size() <= 200
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStaffActivity(data) {
+      return data.keys().hasAll([
+          'storeId', 'date', 'weekKey', 'monthKey', 'staffId', 'staffName', 'staffRole',
+          'shiftCode', 'activityType', 'topic', 'participantsCount', 'productCategory',
+          'customerNotes', 'photoUrl', 'photoSource', 'verificationStatus',
+          'adminNotes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'storeId', 'date', 'weekKey', 'monthKey', 'staffId', 'staffName', 'staffRole',
+          'shiftCode', 'activityType', 'topic', 'participantsCount', 'productCategory',
+          'customerNotes', 'photoUrl', 'photoSource', 'verificationStatus',
+          'adminNotes', 'createdAt', 'updatedAt'
+        ])
+        && data.storeId == 'store-main'
+        && isValidDateStr(data.date)
+        && isValidWeekKey(data.weekKey)
+        && isValidMonthKey(data.monthKey)
+        && isValidId(data.staffId)
+        && data.staffName is string && data.staffName.size() >= 1 && data.staffName.size() <= 120
+        && data.staffRole is string && data.staffRole.size() >= 1 && data.staffRole.size() <= 80
+        && data.shiftCode in ['P', 'M', 'S']
+        && data.activityType in ['open_studio', 'try_on']
+        && data.topic is string && data.topic.size() <= 200
+        && data.participantsCount is int && data.participantsCount >= 0 && data.participantsCount <= 500
+        && data.productCategory in ['', 'AirPods', 'iPad', 'Apple Watch']
+        && data.customerNotes is string && data.customerNotes.size() <= 500
+        && data.photoUrl is string && data.photoUrl.size() <= 1000
+        && data.photoSource in ['gdrive_apps_script', 'manual_link', 'drive_folder_fallback', 'none']
+        && data.verificationStatus in ['pending', 'verified', 'revision']
+        && data.adminNotes is string && data.adminNotes.size() <= 300
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && (
+          (data.activityType == 'open_studio' && data.topic.size() >= 1 && data.participantsCount >= 1) ||
+          (data.activityType == 'try_on' && data.productCategory in ['AirPods', 'iPad', 'Apple Watch'])
+        );
+    }
+
+    function isValidCashierReport(data) {
+      return data.keys().hasAll([
+          'storeId', 'date', 'weekKey', 'monthKey', 'shift', 'cashierName',
+          'openStudioCount', 'openStudioParticipants', 'tryOnCounts', 'totalTryOnCount',
+          'handoverNotes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'storeId', 'date', 'weekKey', 'monthKey', 'shift', 'cashierName',
+          'openStudioCount', 'openStudioParticipants', 'tryOnCounts', 'totalTryOnCount',
+          'handoverNotes', 'createdAt', 'updatedAt'
+        ])
+        && data.storeId == 'store-main'
+        && isValidDateStr(data.date)
+        && isValidWeekKey(data.weekKey)
+        && isValidMonthKey(data.monthKey)
+        && data.shift in ['Pagi', 'Middle', 'Siang', 'Full Day']
+        && data.cashierName is string && data.cashierName.size() >= 1 && data.cashierName.size() <= 120
+        && data.openStudioCount is int && data.openStudioCount >= 0 && data.openStudioCount <= 10000
+        && data.openStudioParticipants is int && data.openStudioParticipants >= 0 && data.openStudioParticipants <= 50000
+        && data.tryOnCounts is map
+        && data.tryOnCounts.keys().hasAll(['airpods', 'ipad', 'watch'])
+        && data.tryOnCounts.keys().hasOnly(['airpods', 'ipad', 'watch'])
+        && data.tryOnCounts.airpods is int && data.tryOnCounts.airpods >= 0 && data.tryOnCounts.airpods <= 10000
+        && data.tryOnCounts.ipad is int && data.tryOnCounts.ipad >= 0 && data.tryOnCounts.ipad <= 10000
+        && data.tryOnCounts.watch is int && data.tryOnCounts.watch >= 0 && data.tryOnCounts.watch <= 10000
+        && data.totalTryOnCount is int && data.totalTryOnCount >= 0 && data.totalTryOnCount <= 30000
+        && data.handoverNotes is string && data.handoverNotes.size() <= 800
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /storeSettings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if resource.data.storeId == 'store-main';
+      allow create: if isValidId(settingId)
+        && isValidStoreSettings(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId)
+        && isValidStoreSettings(incoming())
+        && incoming().storeId == existing().storeId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'storeName', 'driveScriptUrl', 'driveFolders', 'surveyLinks', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /weeklySchedules/{weekKey} {
+      allow get: if isValidWeekKey(weekKey);
+      allow list: if resource.data.storeId == 'store-main';
+      allow create: if isValidWeekKey(weekKey)
+        && isValidWeeklySchedule(incoming(), weekKey)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidWeekKey(weekKey)
+        && isValidWeeklySchedule(incoming(), weekKey)
+        && incoming().storeId == existing().storeId
+        && incoming().weekKey == existing().weekKey
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'weekLabel', 'startDate', 'endDate', 'fileName',
+          'totalStaff', 'totalActiveShifts', 'updatedAt'
+        ]);
+      allow delete: if isValidWeekKey(weekKey);
+
+      match /staff/{staffId} {
+        allow get: if isValidWeekKey(weekKey) && isValidId(staffId);
+        allow list: if resource.data.storeId == 'store-main';
+        allow create: if isValidWeekKey(weekKey) && isValidId(staffId)
+          && (
+            exists(/databases/$(database)/documents/weeklySchedules/$(weekKey)) ||
+            existsAfter(/databases/$(database)/documents/weeklySchedules/$(weekKey))
+          )
+          && isValidWeeklyStaffShift(incoming(), weekKey, staffId)
+          && incoming().updatedAt == request.time;
+        allow update: if isValidWeekKey(weekKey) && isValidId(staffId)
+          && isValidWeeklyStaffShift(incoming(), weekKey, staffId)
+          && incoming().storeId == existing().storeId
+          && incoming().weekKey == existing().weekKey
+          && incoming().staffId == existing().staffId
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'role', 'shifts', 'totalActiveDays', 'counts', 'updatedAt'
+          ]);
+        allow delete: if isValidWeekKey(weekKey) && isValidId(staffId);
+      }
+    }
+
+    match /weeklyTargets/{weekKey} {
+      allow get: if isValidWeekKey(weekKey);
+      allow list: if resource.data.storeId == 'store-main';
+      allow create: if isValidWeekKey(weekKey)
+        && isValidWeeklyTargetConfig(incoming(), weekKey)
+        && incoming().updatedAt == request.time;
+      allow update: if isValidWeekKey(weekKey)
+        && isValidWeeklyTargetConfig(incoming(), weekKey)
+        && incoming().storeId == existing().storeId
+        && incoming().weekKey == existing().weekKey
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'mode', 'dailyQuotas', 'manualTotals', 'staffOverrides', 'updatedAt'
+        ]);
+      allow delete: if isValidWeekKey(weekKey);
+    }
+
+    match /activities/{activityId} {
+      allow get: if isValidId(activityId);
+      allow list: if resource.data.storeId == 'store-main';
+      allow create: if isValidId(activityId)
+        && isValidStaffActivity(incoming())
+        && incoming().verificationStatus == 'pending'
+        && incoming().adminNotes == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(activityId)
+        && isValidStaffActivity(incoming())
+        && incoming().storeId == existing().storeId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'verificationStatus', 'adminNotes', 'topic', 'participantsCount',
+          'productCategory', 'customerNotes', 'photoUrl', 'photoSource', 'updatedAt'
+        ]);
+      allow delete: if isValidId(activityId);
+    }
+
+    match /cashierReports/{reportId} {
+      allow get: if isValidId(reportId);
+      allow list: if resource.data.storeId == 'store-main';
+      allow create: if isValidId(reportId)
+        && isValidCashierReport(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(reportId)
+        && isValidCashierReport(incoming())
+        && incoming().storeId == existing().storeId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'shift', 'cashierName', 'openStudioCount', 'openStudioParticipants',
+          'tryOnCounts', 'totalTryOnCount', 'handoverNotes', 'updatedAt'
+        ]);
+      allow delete: if isValidId(reportId);
+    }
+  }
+}

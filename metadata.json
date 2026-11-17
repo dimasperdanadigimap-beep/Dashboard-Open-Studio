@@ -1,0 +1,6 @@
+{
+  "name": "StoreOps Studio",
+  "description": "Store Training, Activity & Daily Operations Dashboard for retail teams with Excel shift automation, Google Drive photo proof, KPI targets, and cashier closing reports.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
